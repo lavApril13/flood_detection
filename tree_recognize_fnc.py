@@ -4,7 +4,7 @@ import matplotlib.pyplot as plt
 import imageio
 import rasterio
 
-def process_image_with_model(image, model_path='tree.pkl'):
+def process_image_with_model(image, model_path='./skoltech_train/tree.pkl'):
     # Обнаружение воды при помощи деревьев решений
     # Обрабатывает изображение, рассчитывает индексы и делает предсказание с использованием предобученной модели.
     #:param image: Входное изображение в формате numpy.
