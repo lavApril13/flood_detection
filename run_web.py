@@ -6,7 +6,11 @@ import io
 import rasterio
 import folium
 import numpy as np
+import tempfile
+import cv2
 from PIL import Image
+import tree_recognize_fnc
+import run_model
 
 PALLETE = [ [0, 0, 0], [0, 0, 255]]
 
@@ -58,37 +62,24 @@ def plot_data_rgb(image_path):
     st.image(img, "Фото в оптическом диапазоне")
     return img
 
-def plot_mask(mask_path):
-    pal = [value for color in PALLETE for value in color]
-    with rasterio.open(mask_path) as fin:
-        mask = fin.read(1)
-    mask = Image.fromarray(mask).convert('P')
-    mask.putpalette(pal)
-    st.image(mask, "Затопленные области")
-    return mask
-
 
 def load_data(upload_file):
     with rasterio.open(io.BytesIO(upload_file.getvalue())) as src:
         data = src.read()
         bounds = [src.bounds.left, src.bounds.bottom, src.bounds.right, src.bounds.top]
         meta = src.meta.copy()
-        return data, bounds, meta
+        return data, bounds, meta, src
 
 
-def analyse(data):
-    # пока порогом выделим маску
-    # тут нейронка должна вернуть маску от 0 до 1
-    # --------------------------------------------
-    channels, w, h = data.shape
-    blue = np.reshape(data[1, :, :], (w, h, 1))
-    blue_b = brighten(blue)
-    blue_bn = normalize(blue_b)
-
-    blue_bn[blue_bn>0.5] = 1
-    blue_bn[blue_bn<=0.5] = 0
-    mask = blue_bn
-    # ----------------------------------------------
+def analyse(data, src, method):
+    if method==0:
+        mask = tree_recognize_fnc.process_image_with_model(data)
+    elif method==1:
+        run = run_model.Runner()
+        mask = run.run(data, 0)
+    elif method==2:
+        run = run_model.Runner()
+        mask = run.run(data, 1)
     return mask
 
 
@@ -110,24 +101,48 @@ def run_web_app():
     uploaded_file = st.sidebar.file_uploader("Выберите изображение для анализа", type=["tif"])
     if uploaded_file is not None:
         st.write("You selected the file:", uploaded_file.name)
+        print('file ' + uploaded_file.name + ' is open')
         plot_data_rgb(uploaded_file)
         #скачиваем один tif файл целиком, чтобы дальше передать на обработку
         # в data первая размерность это число каналов (channels, m, n)
-        data, bounds, meta = load_data(uploaded_file)
+        data, bounds, meta, src = load_data(uploaded_file)
 
-        if st.sidebar.button("Выделить области покрытые водой"):
+        flag_press_button = 0
+        if st.sidebar.button("  Tree"):
             # считает и возвращает маску с затоплениями от 0 до 1
-            mask = analyse(data)
+            mask = analyse(data, src, 0)
+            flag_press_button = 1
+            print('mask tree generated')
+        if st.sidebar.button("UNet++"):
+            mask = analyse(data, src, 1)
+            print('mask Unet++ generated')
+            flag_press_button = 1
+        if st.sidebar.button("  UNet"):
+            mask = analyse(data, src, 2)
+            print('mask Unet generated')
+            flag_press_button = 1
 
+        if flag_press_button > 0:
+            flag_press_button = 0
             # просто отрисуем маску
-            st.image(mask, "Затопленные области")
+            st.image(mask.astype(np.uint8)*255, "Затопленные области")
 
             # Отображаем маску поверх карты
             map_object = display_on_map(mask, bounds)
             st.components.v1.html(map_object._repr_html_(), height=500)
 
-            # сохраняем как у них чтобы выгружать на проверку
-            save_mask_to_tif(mask, meta, "binary_mask.tif")
+            st.write('Площадь водной поверхности ' + str(np.sum(mask)*10/1000/100) + ' кв. км')
+            # сохраняем как локально чтобы выгружать на проверку
+            #save_mask_to_tif(mask, meta, "binary_mask.tif")
+            # Сохранение бинарного изображения во временный файл
+
+            with tempfile.NamedTemporaryFile(delete=False, suffix=".tif") as temp_file:
+                temp_filename = temp_file.name
+                cv2.imwrite(temp_filename, mask)
+
+            # Кнопка для скачивания результата
+            st.download_button("Скачать бинарное изображение", data=open(temp_filename, "rb").read(), file_name=uploaded_file.name)
+            print('image was sawed')
 
 
 if __name__ == '__main__':
