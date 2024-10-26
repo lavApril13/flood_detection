@@ -50,17 +50,17 @@ def image_padding(image, target_size=256):
 class Runner():
     def __init__(self):
         self.__model0 = torch.load('./skoltech_train/model_8th_all.pt')
-        #self.__model1 = torch.load('./skoltech_train/UNet_100_6_2.pt')
         self.__model1 = get_model('./skoltech_train/unet_100_6_2.pth')
         self.__device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-        print("cuda" if torch.cuda.is_available() else "cpu")
+        #print("cuda" if torch.cuda.is_available() else "cpu")
         self.__model0.to(self.__device)
         self.__model1.to(self.__device)
 
     def run(self, image, model_type):
-        image_array = image.read().astype(np.float32)
-        image_width = image.width
-        image_height = image.height
+        #image_array = image.read().astype(np.float32)
+        image_array = image
+        image_width = image.shape[2]#.width
+        image_height = image.shape[1]#.height
         new_img = np.zeros((image_height, image_width))
         tiles = get_tiles_with_overlap(image_width, image_height, 256, 32)
         with torch.no_grad():
@@ -93,14 +93,15 @@ class Runner():
 
                 if model_type==0:
                     out = self.__model0(crop)
+                    out = torch.sigmoid(out)
+                    out = torch.round(out)
                 else:
                     out = self.__model1(crop)
-                out = torch.sigmoid(out)
-                out = torch.round(out)
+                    out = torch.sigmoid(out)
+                    out[out>0.6] = 1
+                    out[out!=1] = 0
+
                 out = out[0, 0].cpu().detach().numpy()
-
-
-
 
                 out = out[:tile.height, :tile.width]
                 h = tile.height
@@ -110,7 +111,6 @@ class Runner():
 
                 if tile.col_off + tile.width > image_width - 1:
                     w = image_width - tile.col_off
-
 
                 out = out[:h, :w]
 
