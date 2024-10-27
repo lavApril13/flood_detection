@@ -12,6 +12,7 @@ from PIL import Image
 import tree_recognize_fnc
 import run_model
 from skimage import morphology
+from scipy import ndimage
 
 PALLETE = [ [0, 0, 0], [0, 0, 255]]
 
@@ -140,11 +141,46 @@ def run_web_app():
 
         if flag_press_button > 0:
             flag_press_button = 0
-            # Создаем структурный элемент
-            selem = morphology.disk(1)
-            # Применяем эрозию и дилатацию
-            mask = morphology.erosion(mask, selem)
+            # # Создаем структурный элемент
+            # selem = morphology.disk(1)
+            # # Применяем эрозию и дилатацию
+            # mask = morphology.erosion(mask, selem)
 
+            # mask = np.uint8(mask)*255
+            # ret, thresh = cv2.threshold(mask, 127, 255, 0)
+            # contours, hierarchy = cv2.findContours(thresh, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
+            # mask = cv2.drawContours(mask, contours, -1, (0, 255, 0), 1)
+            # mask = mask.astype(np.uint16)/255
+
+            mask = np.uint8(mask) * 255
+            # Инвертируем изображение (черные области станут белыми, а белые - черными)
+            inverted_image = np.invert(mask)
+
+            # Находим все объекты (белые области) на инвертированном изображении
+            #labeled_objects, num_objects = ndimage.label(inverted_image)
+            max_hole_size = 1000
+            # Заполняем небольшие дыры в объектах
+            binary_image = inverted_image.copy()
+            _, binary_image = cv2.threshold(binary_image, 127, 255, cv2.THRESH_BINARY)
+
+            num_labels, labels, stats, centroids = cv2.connectedComponentsWithStats(binary_image, connectivity=8)
+
+            # Создаем маску для сохранения больших объектов
+            mask = np.zeros_like(binary_image, dtype=np.uint8)
+            min_object_size = 1000
+            # Итерируемся по объектам и сохраняем только те, площадь которых больше или равна min_object_size
+            for i in range(1, num_labels):
+                area = stats[i, cv2.CC_STAT_AREA]
+                if area >= min_object_size:
+                    component_mask = (labels == i).astype(np.uint8)
+                    mask = cv2.bitwise_or(mask, component_mask)
+            st.write(mask.max())
+            # Инвертируем обратно заполненное изображение
+            mask = np.invert(mask)
+            mask = mask.astype(np.uint16)/255
+            mask[mask!=1] = 0
+            mask = mask.astype(np.uint16)
+            
             # просто отрисуем маску
             st.image(mask.astype(np.uint8)*255, "Затопленные области")
 
