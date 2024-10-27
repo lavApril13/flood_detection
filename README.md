@@ -7,3 +7,4 @@ run_web.py - основной скрипт, который надо запуст
 config.toml - конфиг для стремлита, чтобы загружать большие файлы.  Положить в папку .streamlit
 
 ![screenshot](scrin2.png)
+<video src='[your URL here](https://disk.yandex.ru/i/W7AWroHyYnDasQ)' width=180/>
