@@ -11,6 +11,7 @@ import cv2
 from PIL import Image
 import tree_recognize_fnc
 import run_model
+from skimage import morphology
 
 PALLETE = [ [0, 0, 0], [0, 0, 255]]
 
@@ -121,9 +122,29 @@ def run_web_app():
             mask = analyse(data, src, 2)
             print('mask Unet generated')
             flag_press_button = 1
+        if st.sidebar.button("   All"):
+            print('mask Unet generated')
+            mask1 = analyse(data, src, 0)
+            mask2 = analyse(data, src, 1)
+            mask3 = analyse(data, src, 2)
+
+            # Голосование. '2из3'
+            #mask = ((mask1+mask2+mask3)>2).astype(np.uint16)
+
+            # Суммирование обнаруженных объектов нейросетями. И удаление заведомо НЕводы обнаруженной деревом
+            mask = (mask2+mask3)
+            mask[mask1==0] = 0
+            mask[mask>0] = 1
+
+            flag_press_button = 1
 
         if flag_press_button > 0:
             flag_press_button = 0
+            # Создаем структурный элемент
+            selem = morphology.disk(1)
+            # Применяем эрозию и дилатацию
+            mask = morphology.erosion(mask, selem)
+
             # просто отрисуем маску
             st.image(mask.astype(np.uint8)*255, "Затопленные области")
 
