@@ -94,11 +94,13 @@ class Runner():
                 if model_type==0:
                     out = self.__model0(crop)
                     out = torch.sigmoid(out)
-                    out = torch.round(out)
+                    #out = torch.round(out)
+                    out[out > 0.3] = 1
+                    out[out != 1] = 0
                 else:
                     out = self.__model1(crop)
                     out = torch.sigmoid(out)
-                    out[out>0.6] = 1
+                    out[out>0.5] = 1
                     out[out!=1] = 0
 
                 out = out[0, 0].cpu().detach().numpy()
