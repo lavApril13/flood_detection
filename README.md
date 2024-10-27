@@ -6,5 +6,6 @@ https://disk.yandex.ru/d/9qb9GrStkBtfEw -- папка с моделями, со�
 run_web.py - основной скрипт, который надо запустить командой streamlit run run_web.py
 config.toml - конфиг для стремлита, чтобы загружать большие файлы.  Положить в папку .streamlit
 
-![screenshot](scrin2.png)
-<video src='[your URL here](https://disk.yandex.ru/i/W7AWroHyYnDasQ)' width=180/>
+https://github.com/user-attachments/assets/4774fe3c-a733-41af-bf1e-55f9e91e2a41
+
+
